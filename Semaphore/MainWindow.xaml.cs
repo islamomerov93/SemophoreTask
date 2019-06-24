@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -10,19 +11,22 @@ namespace SemaphoreTask
     /// </summary>
     public partial class MainWindow : Window
     {
+        Semaphore s1 = new Semaphore(3,3,"My Semophore");
+        private const string MutexName = "MUTEX_SINGLEINSTANCEANDNAMEDPIPE";
+        private bool _firstApplicationInstance;
+        private Mutex _mutexApplication;
         static VM VM;
+        static Dictionary<int, EventWaitHandle> waitHandles = new Dictionary<int, EventWaitHandle>();
+        static List<string> ct = new List<string>();
+        static List<string> wt = new List<string>();
+        static List<string> wts = new List<string>();
+        static string selected;
         public MainWindow()
         {
             InitializeComponent();
             VM = new VM();
             DataContext = VM;
         }
-        static List<string> ct = new List<string>();
-        static List<string> wt = new List<string>();
-        static List<string> wts = new List<string>();
-        static string selected;
-        Semaphore s1 = new Semaphore(3,3,"My Semophore");
-        static Dictionary<int, EventWaitHandle> waitHandles = new Dictionary<int, EventWaitHandle>();
 
         private void ThreadCreateBtn(object sender, RoutedEventArgs e)
         {
@@ -86,7 +90,7 @@ namespace SemaphoreTask
                     }
                     finally
                     {
-                        Thread.Sleep(3000);
+                        Thread.Sleep(4000);
                         App.Current.Dispatcher.Invoke(delegate
                         {
                             wts.Remove(wts.Find(x => x.CompareTo($"Thread {id2}") == 0));
@@ -97,6 +101,33 @@ namespace SemaphoreTask
                         s.Release();
                     }
                 }
+            }
+        }
+
+
+        private bool IsApplicationFirstInstance()
+        {
+            if (_mutexApplication == null)
+            {
+                _mutexApplication = new Mutex(true, MutexName, out _firstApplicationInstance);
+            }
+            return _firstApplicationInstance;
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (!IsApplicationFirstInstance())
+            {
+                MessageBox.Show("There is open instance of this app, please close it before", "Close other Instance", MessageBoxButton.OK, MessageBoxImage.Error,MessageBoxResult.Yes,MessageBoxOptions.ServiceNotification);
+                Application.Current.Shutdown();
+            }
+        }
+
+        private void Window_Closed(object sender, System.EventArgs e)
+        {
+            if (_mutexApplication != null)
+            {
+                _mutexApplication.Dispose();
             }
         }
     }
